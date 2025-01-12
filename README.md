@@ -23,4 +23,5 @@ Run the script using the following syntax:
 
 ```powershell
 .\AnalyzePermissions.ps1 -SourceType <Users|Computers|Groups> -SourceObject <SamAccountName> [-ExtraGPOEnumeration]
+![image](https://github.com/user-attachments/assets/f480ba07-e459-47a1-a996-707451692e00)
 
