@@ -21,7 +21,7 @@ param (
 # Introductory Banner
 Write-Host "#############################################" -ForegroundColor Cyan
 Write-Host "#           AnalyzePermissions.ps1          #" -ForegroundColor Cyan
-Write-Host "#       Created by m3ta | Version 1.1       #" -ForegroundColor Cyan
+Write-Host "#       Created by m3ta | Version 1.1.1     #" -ForegroundColor Cyan
 Write-Host "#############################################" -ForegroundColor Cyan
 Write-Host "`nDescription:" -ForegroundColor Yellow
 Write-Host "  This script analyzes Active Directory permissions for a specified domain object (User, Computer, or Group)."
@@ -131,9 +131,8 @@ if ($ASREPRoasting) {
 
 # Logon Script Analysis
 if ($LogonScripts) {
-    Write-Host "`nUsers with Logon Scripts:" -ForegroundColor Yellow
     try {
-        $logonScriptUsers = Get-DomainUser | Where-Object { $_.scriptpath -ne $null -and $_.scriptpath -ne "" } | Select-Object SamAccountName, ScriptPath
+        $logonScriptUsers = @(Get-DomainUser | Where-Object { $_.scriptpath -ne $null -and $_.scriptpath -ne "" } | Select-Object SamAccountName, ScriptPath)
         if ($logonScriptUsers.Count -gt 0) {
             $logonScriptUsers | Format-Table -Property SamAccountName, ScriptPath -AutoSize
         } else {
