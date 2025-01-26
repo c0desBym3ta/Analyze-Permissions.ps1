@@ -17,11 +17,6 @@
 - **Logon Script Analysis**: Lists users with assigned logon scripts for enhanced visibility into login processes.
 - **PowerView Integration**: Utilizes PowerView for Active Directory enumeration.
 
-## What's New in Version 1.1
-- **Added optional -ASREPRoasting parameter to identify vulnerable accounts.**
-- **Added optional -LogonScripts parameter to list users with logon scripts.**
-- **Updated introductory banner and help menu with the latest features.**
-
 ## Prerequisites
 
 - **PowerShell 5.1 or later.**
@@ -37,5 +32,11 @@ Run the script using the following syntax:
 ```powershell
 .\AnalyzePermissions.ps1 -SourceType <Users|Computers|Groups> -SourceObject <SamAccountName> [-ExtraGPOEnumeration] [-ASREPRoasting] [-LogonScripts]
 
+## What's New in Version 1.1
+- **Added optional -ASREPRoasting parameter to identify vulnerable accounts.**
+- **Added optional -LogonScripts parameter to list users with logon scripts.**
+- **Updated introductory banner and help menu with the latest features.**
 
+## What's New in Version 1.1.1
+- **Fixing small bug on logon scripts not showing.**
 
