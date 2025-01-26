@@ -9,35 +9,50 @@ param (
     [Parameter(Mandatory=$false)]
     [switch]$ExtraGPOEnumeration,  # New Optional Parameter for Extra GPO Enumeration
 
+    [Parameter(Mandatory=$false)]
+    [switch]$ASREPRoasting,  # Optional parameter for ASREP Roasting analysis
+
+    [Parameter(Mandatory=$false)]
+    [switch]$LogonScripts,  # Optional parameter for logon script analysis
+
     [switch]$Help
 )
 
 # Introductory Banner
 Write-Host "#############################################" -ForegroundColor Cyan
 Write-Host "#           AnalyzePermissions.ps1          #" -ForegroundColor Cyan
-Write-Host "#       Created by m3ta | Version 1.0       #" -ForegroundColor Cyan
+Write-Host "#       Created by m3ta | Version 1.1       #" -ForegroundColor Cyan
 Write-Host "#############################################" -ForegroundColor Cyan
 Write-Host "`nDescription:" -ForegroundColor Yellow
 Write-Host "  This script analyzes Active Directory permissions for a specified domain object (User, Computer, or Group)."
-Write-Host "  It provides categorized permissions and optional GPO enumeration for Create, Link, and Modify actions."
+Write-Host "  It provides categorized permissions and optional analyses, including:"
+Write-Host "    - Enumeration of Group Policy Objects (GPOs) for Create, Link, and Modify actions."
+Write-Host "    - Detection of users vulnerable to ASREP Roasting (accounts with DONT_REQ_PREAUTH)."
+Write-Host "    - Listing of users with assigned logon scripts."
 Write-Host "`nUse the -Help parameter for detailed usage instructions." -ForegroundColor Green
 Write-Host "#############################################`n" -ForegroundColor Cyan
 
+
 # Show help menu if -Help is specified
 if ($Help) {
-    Write-Host "Usage: AnalyzePermissions.ps1 -SourceType <Users|Computers|Groups> -SourceObject <SamAccountName> [-ExtraGPOEnumeration]"
+    Write-Host "Usage: AnalyzePermissions.ps1 -SourceType <Users|Computers|Groups> -SourceObject <SamAccountName> [-ExtraGPOEnumeration] [-ASREPRoasting] [-LogonScripts]"
     Write-Host "`nParameters:"
     Write-Host "  -SourceType        The type of the source object. Must be one of: Users, Computers, or Groups."
     Write-Host "  -SourceObject      The SAMAccountName of the object to analyze permissions for."
     Write-Host "  -ExtraGPOEnumeration  An optional switch to include extra GPO enumeration."
+    Write-Host "  -ASREPRoasting     An optional switch to identify users vulnerable to ASREP Roasting."
+    Write-Host "  -LogonScripts      An optional switch to list users with assigned logon scripts."
     Write-Host "  -Help              Display this help menu."
     Write-Host "`nDescription:"
     Write-Host "  This script analyzes Active Directory permissions for a specified domain object (User, Computer, or Group) using PowerView."
     Write-Host "  It retrieves all permissions granted to the specified object and categorizes them by Users, Computers, and Groups."
-    Write-Host "  Additionally, it performs GPO enumeration for Create, Link, and Modify actions."
+    Write-Host "  Additionally:"
+    Write-Host "    - Performs optional GPO enumeration for Create, Link, and Modify actions."
+    Write-Host "    - Identifies users vulnerable to ASREP Roasting (accounts with DONT_REQ_PREAUTH)."
+    Write-Host "    - Lists users with assigned logon scripts."
     Write-Host "`nExample:"
     Write-Host "  .\AnalyzePermissions.ps1 -SourceType Users -SourceObject john.doe"
-    Write-Host "  .\AnalyzePermissions.ps1 -SourceType Users -SourceObject john.doe -ExtraGPOEnumeration"
+    Write-Host "  .\AnalyzePermissions.ps1 -SourceType Users -SourceObject john.doe -ExtraGPOEnumeration -ASREPRoasting -LogonScripts"
     exit
 }
 
@@ -98,6 +113,37 @@ if ($ExtraGPOEnumeration) {
         Write-Host "Get-GPOEnumeration.ps1 is already loaded." -ForegroundColor Green
     }
 }
+
+# ASREP Roasting Analysis
+if ($ASREPRoasting) {
+    Write-Host "`nUsers Vulnerable to ASREP Roasting:" -ForegroundColor Yellow
+    try {
+        $asrepUsers = Get-DomainUser -UACFilter DONT_REQ_PREAUTH | Select-Object SamAccountName, UserAccountControl
+        if ($asrepUsers.Count -gt 0) {
+            $asrepUsers | Format-Table -Property SamAccountName, UserAccountControl -AutoSize
+        } else {
+            Write-Host "No users vulnerable to ASREP Roasting found." -ForegroundColor Green
+        }
+    } catch {
+        Write-Host "Error: Unable to fetch ASREP Roasting data. $_" -ForegroundColor Red
+    }
+}
+
+# Logon Script Analysis
+if ($LogonScripts) {
+    Write-Host "`nUsers with Logon Scripts:" -ForegroundColor Yellow
+    try {
+        $logonScriptUsers = Get-DomainUser | Where-Object { $_.scriptpath -ne $null -and $_.scriptpath -ne "" } | Select-Object SamAccountName, ScriptPath
+        if ($logonScriptUsers.Count -gt 0) {
+            $logonScriptUsers | Format-Table -Property SamAccountName, ScriptPath -AutoSize
+        } else {
+            Write-Host "No logon scripts found for the current domain users." -ForegroundColor Green
+        }
+    } catch {
+        Write-Host "Error: Unable to fetch logon script data. $_" -ForegroundColor Red
+    }
+}
+
 
 function Analyze-Permissions {
     param (
