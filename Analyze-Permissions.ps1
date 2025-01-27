@@ -34,7 +34,7 @@ param (
 # Introductory Banner
 Write-Host "#############################################" -ForegroundColor Cyan
 Write-Host "#           AnalyzePermissions.ps1          #" -ForegroundColor Cyan
-Write-Host "#       Created by m3ta | Version 1.2.1     #" -ForegroundColor Cyan
+Write-Host "#       Created by m3ta | Version 1.2.2     #" -ForegroundColor Cyan
 Write-Host "#############################################" -ForegroundColor Cyan
 Write-Host "`nDescription:" -ForegroundColor Yellow
 Write-Host "  This script analyzes Active Directory permissions for a specified domain object (User, Computer, or Group)."
@@ -194,9 +194,9 @@ if ($TrustedForUnConstrainedDelegation) {
 if ($TrustedForConstrainedDelegation) {
     Write-Host "`nUsers and/or Computers with the 'Trusted to Auth for Delegation' attribute set indicating Constrained Delegation:" -ForegroundColor Cyan
     try {
-        $trustedUsers = @(Get-DomainObject -UACFilter TRUSTED_TO_AUTH_FOR_DELEGATION | Select-Object SamAccountName, UserAccountControl)
+        $trustedUsers = @(Get-DomainObject -UACFilter TRUSTED_TO_AUTH_FOR_DELEGATION | Select-Object SamAccountName, UserAccountControl, msds-AllowedToDelegateto)
         if ($trustedUsers.Count -gt 0) {
-            $trustedUsers | Format-Table -Property SamAccountName, UserAccountControl -AutoSize
+            $trustedUsers | Format-Table -Property SamAccountName, UserAccountControl, msds-AllowedToDelegateto  -AutoSize
         } else {
             Write-Host "No users and/or Computers with 'Trusted to Auth for Delegation' found in the current domain." -ForegroundColor Green
         }
