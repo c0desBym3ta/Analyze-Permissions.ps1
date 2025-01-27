@@ -15,44 +15,58 @@ param (
     [Parameter(Mandatory=$false)]
     [switch]$LogonScripts,  # Optional parameter for logon script analysis
 
+    [Parameter(Mandatory=$false)]
+    [switch]$Kerberoastable,  # Optional parameter for finding kerberoastable accounts.
+
+    [Parameter(Mandatory=$false)]
+    [switch]$TrustedForDelegation,  # Optional parameter for Trusted to Authenticate Objects
+
+    [Parameter(Mandatory=$false)]
+    [switch]$AllAssignedSPNs,  # Optional parameter for fiding all assigned SPNs
+
+
     [switch]$Help
 )
 
 # Introductory Banner
 Write-Host "#############################################" -ForegroundColor Cyan
 Write-Host "#           AnalyzePermissions.ps1          #" -ForegroundColor Cyan
-Write-Host "#       Created by m3ta | Version 1.1.1     #" -ForegroundColor Cyan
+Write-Host "#       Created by m3ta | Version 1.2       #" -ForegroundColor Cyan
 Write-Host "#############################################" -ForegroundColor Cyan
 Write-Host "`nDescription:" -ForegroundColor Yellow
 Write-Host "  This script analyzes Active Directory permissions for a specified domain object (User, Computer, or Group)."
-Write-Host "  It provides categorized permissions and optional analyses, including:"
-Write-Host "    - Enumeration of Group Policy Objects (GPOs) for Create, Link, and Modify actions."
-Write-Host "    - Detection of users vulnerable to ASREP Roasting (accounts with DONT_REQ_PREAUTH)."
-Write-Host "    - Listing of users with assigned logon scripts."
+Write-Host "  It provides categorized permissions and optional checks for ASREP Roasting, Kerberoastable users, logon scripts,"
+Write-Host "  users trusted for delegation, and objects with assigned SPNs. Additionally, it performs GPO enumeration"
+Write-Host "  for Create, Link, and Modify actions." -ForegroundColor Yellow
 Write-Host "`nUse the -Help parameter for detailed usage instructions." -ForegroundColor Green
 Write-Host "#############################################`n" -ForegroundColor Cyan
 
 
 # Show help menu if -Help is specified
 if ($Help) {
-    Write-Host "Usage: AnalyzePermissions.ps1 -SourceType <Users|Computers|Groups> -SourceObject <SamAccountName> [-ExtraGPOEnumeration] [-ASREPRoasting] [-LogonScripts]"
+    Write-Host "Usage: AnalyzePermissions.ps1 -SourceType <Users|Computers|Groups> -SourceObject <SamAccountName> [-ExtraGPOEnumeration] [-ASREPRoasting] [-LogonScripts] [-Kerberoastable] [-TrustedForDelegation] [-AllAssignedSPNs]"
     Write-Host "`nParameters:"
-    Write-Host "  -SourceType        The type of the source object. Must be one of: Users, Computers, or Groups."
-    Write-Host "  -SourceObject      The SAMAccountName of the object to analyze permissions for."
-    Write-Host "  -ExtraGPOEnumeration  An optional switch to include extra GPO enumeration."
-    Write-Host "  -ASREPRoasting     An optional switch to identify users vulnerable to ASREP Roasting."
-    Write-Host "  -LogonScripts      An optional switch to list users with assigned logon scripts."
-    Write-Host "  -Help              Display this help menu."
+    Write-Host "  -SourceType            The type of the source object. Must be one of: Users, Computers, or Groups."
+    Write-Host "  -SourceObject          The SAMAccountName of the object to analyze permissions for."
+    Write-Host "  -ExtraGPOEnumeration   An optional switch to include extra GPO enumeration."
+    Write-Host "  -ASREPRoasting         An optional switch to list users vulnerable to ASREP Roasting."
+    Write-Host "  -LogonScripts          An optional switch to list users with assigned logon scripts."
+    Write-Host "  -Kerberoastable        An optional switch to list users with service principal names (SPNs) set."
+    Write-Host "  -TrustedForDelegation  An optional switch to list users with 'Trusted for Delegation' set."
+    Write-Host "  -AllAssignedSPNs       An optional switch to list all objects with assigned Service Principal Names (SPNs)."
+    Write-Host "  -Help                  Display this help menu."
     Write-Host "`nDescription:"
     Write-Host "  This script analyzes Active Directory permissions for a specified domain object (User, Computer, or Group) using PowerView."
     Write-Host "  It retrieves all permissions granted to the specified object and categorizes them by Users, Computers, and Groups."
-    Write-Host "  Additionally:"
-    Write-Host "    - Performs optional GPO enumeration for Create, Link, and Modify actions."
-    Write-Host "    - Identifies users vulnerable to ASREP Roasting (accounts with DONT_REQ_PREAUTH)."
-    Write-Host "    - Lists users with assigned logon scripts."
-    Write-Host "`nExample:"
+    Write-Host "  Additionally, it performs optional checks such as ASREP Roasting, Kerberoastable users, logon scripts,"
+    Write-Host "  users trusted for delegation, and lists objects with assigned SPNs. It can also perform GPO enumeration for Create,"
+    Write-Host "  Link, and Modify actions."
+    Write-Host "`nExamples:"
     Write-Host "  .\AnalyzePermissions.ps1 -SourceType Users -SourceObject john.doe"
-    Write-Host "  .\AnalyzePermissions.ps1 -SourceType Users -SourceObject john.doe -ExtraGPOEnumeration -ASREPRoasting -LogonScripts"
+    Write-Host "  .\AnalyzePermissions.ps1 -SourceType Users -SourceObject john.doe -AllAssignedSPNs"
+    Write-Host "  .\AnalyzePermissions.ps1 -SourceType Users -SourceObject john.doe -ASREPRoasting"
+    Write-Host "  .\AnalyzePermissions.ps1 -SourceType Users -SourceObject john.doe -ExtraGPOEnumeration"
+    Write-Host "`n"
     exit
 }
 
@@ -116,17 +130,18 @@ if ($ExtraGPOEnumeration) {
 
 # ASREP Roasting Analysis
 if ($ASREPRoasting) {
-    Write-Host "`nUsers Vulnerable to ASREP Roasting:" -ForegroundColor Yellow
     try {
-        $asrepUsers = Get-DomainUser -UACFilter DONT_REQ_PREAUTH | Select-Object SamAccountName, UserAccountControl
+        $asrepUsers = @(Get-DomainObject -UACFilter DONT_REQ_PREAUTH | Select-Object SamAccountName, UserAccountControl)
+        Write-Host "`nUsers Vulnerable to ASREP Roasting:" -ForegroundColor Yellow
         if ($asrepUsers.Count -gt 0) {
             $asrepUsers | Format-Table -Property SamAccountName, UserAccountControl -AutoSize
         } else {
-            Write-Host "No users vulnerable to ASREP Roasting found." -ForegroundColor Green
+            Write-Host "No users and/or vulnerable to ASREP Roasting found." -ForegroundColor Green
         }
     } catch {
         Write-Host "Error: Unable to fetch ASREP Roasting data. $_" -ForegroundColor Red
     }
+
 }
 
 # Logon Script Analysis
@@ -143,6 +158,48 @@ if ($LogonScripts) {
     }
 }
 
+# Check for Kerberoastable accounts if -Kerberoastable is specified
+if ($Kerberoastable) {
+    try {
+        $kerberoastableUsers = @(Get-DomainUser -SPN | Select-Object SamAccountName, ServicePrincipalName)
+        Write-Host "`nUsers Vulnerable to Kerberoasting:" -ForegroundColor Yellow
+        if ($kerberoastableUsers.Count -gt 0) {
+            $kerberoastableUsers | Format-Table -Property SamAccountName, ServicePrincipalName -AutoSize
+        } else {
+            Write-Host "No users vulnerable to Kerberoasting found." -ForegroundColor Green
+        }
+    } catch {
+        Write-Host "Error: Unable to fetch Kerberoastable user data. $_" -ForegroundColor Red
+    }
+}
+
+if ($TrustedForDelegation) {
+    Write-Host "`nUsers and/or Computers with the 'Trusted for Delegation' attribute set:" -ForegroundColor Cyan
+    try {
+        $trustedUsers = @(Get-DomainObject -UACFilter TRUSTED_FOR_DELEGATION | Select-Object SamAccountName, UserAccountControl)
+        if ($trustedUsers.Count -gt 0) {
+            $trustedUsers | Format-Table -Property SamAccountName, UserAccountControl -AutoSize
+        } else {
+            Write-Host "No users and/or Computers with 'Trusted for Delegation' found in the current domain." -ForegroundColor Green
+        }
+    } catch {
+        Write-Host "Error: Unable to fetch 'Trusted for Delegation' data. $_" -ForegroundColor Red
+    }
+}
+
+if ($AllAssignedSPNs) {
+    Write-Host "`nObjects with assigned Service Principal Names (SPNs):" -ForegroundColor Cyan
+    try {
+        $spnObjects = @(Get-DomainObject | Where-Object { $_.serviceprincipalname -ne $null -and $_.serviceprincipalname -ne "" } | Select-Object SamAccountName, ServicePrincipalName)
+        if ($spnObjects.Count -gt 0) {
+            $spnObjects | Format-Table -Property SamAccountName, ServicePrincipalName -AutoSize
+        } else {
+            Write-Host "No objects with assigned SPNs found in the current domain." -ForegroundColor Green
+        }
+    } catch {
+        Write-Host "Error: Unable to fetch assigned SPN data. $_" -ForegroundColor Red
+    }
+}
 
 function Analyze-Permissions {
     param (
