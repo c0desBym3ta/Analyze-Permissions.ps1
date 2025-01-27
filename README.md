@@ -47,5 +47,6 @@ Run the script using the following syntax:
 - **Fixing small bug on printing results.**
 - **Trusted for Delegation Check (-TrustedForDelegation).**
 - **All Assigned SPNs Check (-AllAssignedSPNs).**
+- **Finding Kerberoastable Accounts (-Kerberoastable).**
 - **Enhanced Help Menu and Banner.**
 
