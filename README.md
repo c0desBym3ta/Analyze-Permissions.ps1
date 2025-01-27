@@ -14,7 +14,10 @@
 - **Categorized Output**: Results are grouped into Users, Computers, and Groups.
 - **Optional GPO Enumeration**: Lists created, linked, or modified GPOs.
 - **ASREP Roasting Analysis**: Detects accounts with DONT_REQ_PREAUTH, indicating ASREP Roasting vulnerability.
+- **Kerberoastable Accounts**: Detects user accounts with SPN assigned.
 - **Logon Script Analysis**: Lists users with assigned logon scripts for enhanced visibility into login processes.
+- **All Assigned SPNs**: Getting List of All Assigned SPNs.
+- **Delegation Analysis**: Getting list of objects with TRUSTED_FOR_DELEGATION.
 - **PowerView Integration**: Utilizes PowerView for Active Directory enumeration.
 
 ## Prerequisites
@@ -30,7 +33,7 @@ Run the script using the following syntax:
 ![image](https://github.com/user-attachments/assets/8daab02b-90c1-4d59-b225-f029dee897ae)
 
 ```powershell
-.\AnalyzePermissions.ps1 -SourceType <Users|Computers|Groups> -SourceObject <SamAccountName> [-ExtraGPOEnumeration] [-ASREPRoasting] [-LogonScripts]
+.\AnalyzePermissions.ps1 -SourceType <Users|Computers|Groups> -SourceObject <SamAccountName> [-ExtraGPOEnumeration] [-ASREPRoasting] [-LogonScripts] [-Kerberoastable] [-TrustedForDelegation] [-AllAssignedSPNs]
 
 ## What's New in Version 1.1
 - **Added optional -ASREPRoasting parameter to identify vulnerable accounts.**
@@ -39,4 +42,10 @@ Run the script using the following syntax:
 
 ## What's New in Version 1.1.1
 - **Fixing small bug on logon scripts not showing.**
+
+## What's New in Version 1.2
+- **Fixing small bug on printing results.**
+- **Trusted for Delegation Check (-TrustedForDelegation).**
+- **All Assigned SPNs Check (-AllAssignedSPNs).**
+- **Enhanced Help Menu and Banner.**
 
