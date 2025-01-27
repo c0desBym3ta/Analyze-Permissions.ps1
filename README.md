@@ -53,4 +53,7 @@ Run the script using the following syntax:
 ## What's New in Version 1.2.1
 - **Separating Constrained from Unconstrained delegation.**
 
+## What's New in Version 1.2.2
+- **Printing msds-AllowToDelegateTo value.**
+
 
