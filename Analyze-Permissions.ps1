@@ -19,7 +19,10 @@ param (
     [switch]$Kerberoastable,  # Optional parameter for finding kerberoastable accounts.
 
     [Parameter(Mandatory=$false)]
-    [switch]$TrustedForDelegation,  # Optional parameter for Trusted to Authenticate Objects
+    [switch]$TrustedForUnConstrainedDelegation,  # Optional parameter for Trusted to Authenticate Objects
+
+    [Parameter(Mandatory=$false)]
+    [switch]$TrustedForConstrainedDelegation,  # Optional parameter for Constrained Delegation
 
     [Parameter(Mandatory=$false)]
     [switch]$AllAssignedSPNs,  # Optional parameter for fiding all assigned SPNs
@@ -31,13 +34,13 @@ param (
 # Introductory Banner
 Write-Host "#############################################" -ForegroundColor Cyan
 Write-Host "#           AnalyzePermissions.ps1          #" -ForegroundColor Cyan
-Write-Host "#       Created by m3ta | Version 1.2       #" -ForegroundColor Cyan
+Write-Host "#       Created by m3ta | Version 1.2.1     #" -ForegroundColor Cyan
 Write-Host "#############################################" -ForegroundColor Cyan
 Write-Host "`nDescription:" -ForegroundColor Yellow
 Write-Host "  This script analyzes Active Directory permissions for a specified domain object (User, Computer, or Group)."
 Write-Host "  It provides categorized permissions and optional checks for ASREP Roasting, Kerberoastable users, logon scripts,"
-Write-Host "  users trusted for delegation, and objects with assigned SPNs. Additionally, it performs GPO enumeration"
-Write-Host "  for Create, Link, and Modify actions." -ForegroundColor Yellow
+Write-Host "  users trusted for constrationed and unconstrained delegation, and objects with assigned SPNs."
+Write-Host "  Additionally, it performs GPO enumeration for Create, Link, and Modify actions." -ForegroundColor Yellow
 Write-Host "`nUse the -Help parameter for detailed usage instructions." -ForegroundColor Green
 Write-Host "#############################################`n" -ForegroundColor Cyan
 
@@ -52,7 +55,8 @@ if ($Help) {
     Write-Host "  -ASREPRoasting         An optional switch to list users vulnerable to ASREP Roasting."
     Write-Host "  -LogonScripts          An optional switch to list users with assigned logon scripts."
     Write-Host "  -Kerberoastable        An optional switch to list users with service principal names (SPNs) set."
-    Write-Host "  -TrustedForDelegation  An optional switch to list users with 'Trusted for Delegation' set."
+    Write-Host "  -TrustedForUnConstrainedDelegation  An optional switch to list Objects with Unconstrained Delegation."
+    Write-Host "  -TrustedForConstrainedDelegation  An optional switch to list Objects with Constrained Delegation."
     Write-Host "  -AllAssignedSPNs       An optional switch to list all objects with assigned Service Principal Names (SPNs)."
     Write-Host "  -Help                  Display this help menu."
     Write-Host "`nDescription:"
@@ -173,8 +177,8 @@ if ($Kerberoastable) {
     }
 }
 
-if ($TrustedForDelegation) {
-    Write-Host "`nUsers and/or Computers with the 'Trusted for Delegation' attribute set:" -ForegroundColor Cyan
+if ($TrustedForUnConstrainedDelegation) {
+    Write-Host "`nUsers and/or Computers with the 'Trusted for Delegation' attribute set indicatingr Unconstrained Delegatio:" -ForegroundColor Cyan
     try {
         $trustedUsers = @(Get-DomainObject -UACFilter TRUSTED_FOR_DELEGATION | Select-Object SamAccountName, UserAccountControl)
         if ($trustedUsers.Count -gt 0) {
@@ -184,6 +188,20 @@ if ($TrustedForDelegation) {
         }
     } catch {
         Write-Host "Error: Unable to fetch 'Trusted for Delegation' data. $_" -ForegroundColor Red
+    }
+}
+
+if ($TrustedForConstrainedDelegation) {
+    Write-Host "`nUsers and/or Computers with the 'Trusted to Auth for Delegation' attribute set indicating Constrained Delegation:" -ForegroundColor Cyan
+    try {
+        $trustedUsers = @(Get-DomainObject -UACFilter TRUSTED_TO_AUTH_FOR_DELEGATION | Select-Object SamAccountName, UserAccountControl)
+        if ($trustedUsers.Count -gt 0) {
+            $trustedUsers | Format-Table -Property SamAccountName, UserAccountControl -AutoSize
+        } else {
+            Write-Host "No users and/or Computers with 'Trusted to Auth for Delegation' found in the current domain." -ForegroundColor Green
+        }
+    } catch {
+        Write-Host "Error: Unable to fetch 'Trusted to Auth for Delegation' data. $_" -ForegroundColor Red
     }
 }
 
