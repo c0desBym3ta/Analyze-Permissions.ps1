@@ -27,6 +27,20 @@ param (
     [Parameter(Mandatory=$false)]
     [switch]$AllAssignedSPNs,  # Optional parameter for fiding all assigned SPNs
 
+    [Parameter(Mandatory=$false)]
+    [switch]$DomainTrust,  #Optional for getting Domain Trust Information
+
+    [Parameter(Mandatory=$false)]
+    [switch]$DomainTrustMapping,  #Optional for Mapping Domain Trusts Accross Domains if possibile
+
+    [Parameter(Mandatory=$false)]
+    [switch]$NamingContextPermissions, #Optional for enumeration Permissions over Naming Contex.
+
+    [Parameter(Mandatory=$false)]
+    [switch]$ForeignUsers,
+
+    [Parameter(Mandatory=$false)]
+    [switch]$ForeignAcls,
 
     [switch]$Help
 )
@@ -34,13 +48,14 @@ param (
 # Introductory Banner
 Write-Host "#############################################" -ForegroundColor Cyan
 Write-Host "#           AnalyzePermissions.ps1          #" -ForegroundColor Cyan
-Write-Host "#       Created by m3ta | Version 1.2.2     #" -ForegroundColor Cyan
+Write-Host "#       Created by m3ta | Version 1.3     #" -ForegroundColor Cyan
 Write-Host "#############################################" -ForegroundColor Cyan
 Write-Host "`nDescription:" -ForegroundColor Yellow
 Write-Host "  This script analyzes Active Directory permissions for a specified domain object (User, Computer, or Group)."
 Write-Host "  It provides categorized permissions and optional checks for ASREP Roasting, Kerberoastable users, logon scripts,"
-Write-Host "  users trusted for constrationed and unconstrained delegation, and objects with assigned SPNs."
-Write-Host "  Additionally, it performs GPO enumeration for Create, Link, and Modify actions." -ForegroundColor Yellow
+Write-Host "  users trusted for constrationed and unconstrained delegation, objects with assigned SPNs, domain trust information,"
+Write-Host "  information about foreing users and possibility to enumerate acls from current users on a target domain."
+Write-Host "  Additionally, it performs GPO enumeration for Create, Link, and Modify actions and naming context permissions." -ForegroundColor Yellow
 Write-Host "`nUse the -Help parameter for detailed usage instructions." -ForegroundColor Green
 Write-Host "#############################################`n" -ForegroundColor Cyan
 
@@ -58,6 +73,11 @@ if ($Help) {
     Write-Host "  -TrustedForUnConstrainedDelegation  An optional switch to list Objects with Unconstrained Delegation."
     Write-Host "  -TrustedForConstrainedDelegation  An optional switch to list Objects with Constrained Delegation."
     Write-Host "  -AllAssignedSPNs       An optional switch to list all objects with assigned Service Principal Names (SPNs)."
+    Write-Host "  -DomainTrust		 An optional switch to list domain trusts."	
+    Write-Host "  -DomainTrustMapping    An option switch to attemp the domain trust mapping across domains."
+    Write-Host "  -NamingContextPermissions An optional switch to list Naming Context Permissions."
+    Write-Host "  -ForeignUsers          An optional switch to list foreign users to remote domains."
+    Write-Host "  -ForeignAcls           An optional switch to list acls from current domain users to remote objects."
     Write-Host "  -Help                  Display this help menu."
     Write-Host "`nDescription:"
     Write-Host "  This script analyzes Active Directory permissions for a specified domain object (User, Computer, or Group) using PowerView."
@@ -216,6 +236,118 @@ if ($AllAssignedSPNs) {
         }
     } catch {
         Write-Host "Error: Unable to fetch assigned SPN data. $_" -ForegroundColor Red
+    }
+}
+
+if ($DomainTrust) {
+    Write-Host "`nAnalyzing domain trust relationships..." -ForegroundColor Cyan
+    try {
+        $domainTrusts = Get-DomainTrust | Select-Object SourceName, TargetName, TrustDirection, TrustAttributes
+        if ($domainTrusts) {
+            $domainTrusts | Format-Table -Property SourceName, TargetName, TrustDirection, TrustAttributes -AutoSize
+        } else {
+            Write-Host "No domain trust relationships found." -ForegroundColor Green
+        }
+    } catch {
+        Write-Host "Error: Unable to analyze domain trust relationships. $_" -ForegroundColor Red
+    }
+}
+
+# DomainTrustMapping Analysis
+if ($DomainTrustMapping) {
+    Write-Host "`nMapping domain trust relationships..." -ForegroundColor Cyan
+    try {
+        $trustMapping = Get-DomainTrustMapping | Select-Object SourceName, TargetName, TrustDirection, TrustAttributes
+        if ($trustMapping) {
+            $trustMapping | Format-Table -Property SourceName, TargetName, TrustDirection, TrustAttributes -AutoSize
+        } else {
+            Write-Host "No domain trust mappings found." -ForegroundColor Green
+        }
+    } catch {
+        Write-Host "Error: Unable to map domain trust relationships. $_" -ForegroundColor Red
+    }
+}
+
+if ($NamingContextPermissions) {
+    Write-Host "`nAnalyzing permissions on the Configuration naming context with ActiveDirectory module..." -ForegroundColor Cyan
+
+    try {
+        # Import the ActiveDirectory module if not already imported
+        Write-Host "Loading ActiveDirectory module..." -ForegroundColor Yellow
+        Import-Module ActiveDirectory
+
+        # Ensure the 'AD:' drive is available
+        if (-not (Get-PSDrive -Name AD -ErrorAction SilentlyContinue)) {
+            Write-Host "Creating AD: drive..." -ForegroundColor Yellow
+            New-PSDrive -Name AD -PSProvider ActiveDirectory -Root "//RootDSE"
+        }
+
+        # Retrieve the Configuration naming context dynamically
+        $configurationDN = ([ADSI]"LDAP://RootDSE").configurationNamingContext
+
+        # Get ACLs for the Configuration naming context
+        $acl = Get-Acl -Path "AD:$configurationDN"
+
+        # Filter for specific permissions (GenericAll or Write)
+        $filteredAcl = $acl.Access | Where-Object { $_.ActiveDirectoryRights -match "GenericAll|Write" } | 
+Select-Object IdentityReference, ActiveDirectoryRights
+
+        if ($filteredAcl) {
+            # Display results
+            $filteredAcl | Select-Object IdentityReference, ActiveDirectoryRights, AccessControlType | 
+                Format-Table -AutoSize
+        } else {
+            Write-Host "No permissions with 'GenericAll' or 'Write' found on the Configuration naming context." -ForegroundColor Green
+        }
+    } catch {
+        Write-Host "Error: Unable to analyze permissions on the Configuration naming context. $_" -ForegroundColor Red
+    }
+}
+
+# Foreign Users Enumeration
+# Enumerate foreign users if the -ForeignUsers switch is used
+if ($ForeignUsers) {
+    Write-Host "`nEnumerating foreign users in the domain..." -ForegroundColor Cyan
+    try {
+        $ForeignUsersList = Get-DomainForeignUser | Select-Object UserName, UserDomain, GroupDomain, GroupName
+        if ($ForeignUsersList.Count -gt 0) {
+            $ForeignUsersList | Format-Table -AutoSize
+        } else {
+            Write-Host "No foreign users found in the domain." -ForegroundColor Green
+        }
+    } catch {
+        Write-Host "Error: Unable to enumerate foreign users. $_" -ForegroundColor Red
+    }
+}
+
+# Enumerate foreign ACLs if the -ForeignAcls switch is used
+if ($ForeignAcls) {
+    Write-Host "`nEnumerating foreign ACLs in the domain..." -ForegroundColor Cyan
+    try {
+        $Domain = Read-Host "Enter the target domain name"
+        $DomainSid = Get-DomainSid $Domain
+
+        $ForeignAclList = Get-DomainObjectAcl -Domain $Domain -ResolveGUIDs -Identity * | Where-Object { 
+            ($_.ActiveDirectoryRights -match 'WriteProperty|GenericAll|GenericWrite|WriteDacl|WriteOwner') -and 
+            ($_.AceType -match 'AccessAllowed') -and 
+            ($_.SecurityIdentifier -match '^S-1-5-.*-[1-9]\d{3,}$') -and 
+            ($_.SecurityIdentifier -notmatch $DomainSid)
+        } | ForEach-Object {
+            [PSCustomObject]@{
+                SecurityIdentifier     = $_.SecurityIdentifier
+                ResolvedName           = ConvertFrom-SID $_.SecurityIdentifier
+                ActiveDirectoryRights  = $_.ActiveDirectoryRights
+                ObjectDN               = $_.ObjectDN
+            }
+        }
+
+        if ($ForeignAclList.Count -gt 0) {
+            $ForeignAclList | Format-Table -AutoSize -Wrap
+        } else {
+            Write-Host "No foreign ACLs found in the domain." -ForegroundColor Green
+        }
+    } catch {
+        Write-Host "Error: Unable to enumerate foreign ACLs. $_" -ForegroundColor Red
     }
 }
 
