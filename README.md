@@ -17,6 +17,11 @@
 - **Kerberoastable Accounts**: Detects user accounts with SPN assigned.
 - **Logon Script Analysis**: Lists users with assigned logon scripts for enhanced visibility into login processes.
 - **All Assigned SPNs**: Getting List of All Assigned SPNs.
+- **DomainTrust**: Getting List of All Domain Trusts.
+- **DomainTrustMapping**: Getting List Domain Trust Mappings across domains..
+- **NamingContextPermissions**: Getting List of Naming Context permissions.
+- **ForeignUsers**: Getting List of foreign users to remote domains.
+- **ForeignAcls**: Getting List acls from current domain users to remote objects.
 - **Delegation Analysis**: Getting list of objects with Constrained and Unconstrained delegation.
 - **PowerView Integration**: Utilizes PowerView for Active Directory enumeration.
 
@@ -55,5 +60,11 @@ Run the script using the following syntax:
 
 ## What's New in Version 1.2.2
 - **Printing msds-AllowToDelegateTo value.**
+
+## What's New in Version 1.3
+- **Domain Trust and Mapping Information.**
+- **Foreing ACLs and Foreign users memberships.**
+- **Naming Context Permissions.**
+
 
 
